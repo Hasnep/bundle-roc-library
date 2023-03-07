@@ -1,0 +1,38 @@
+name: Run self
+
+on:
+  # Run on all PRs
+  pull_request:
+    paths-ignore:
+      - "**.md"
+  # Run when a PR is merged into main
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "**.md"
+
+jobs:
+  run-self:
+    name: Run self
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v3
+      - name: Checkout an example repo
+        uses: actions/checkout@v3
+        with:
+          repository: Hasnep/roc-json
+          path: roc-json
+      - name: Install Roc
+        uses: Hasnep/setup-roc@main
+        with:
+          roc-version: nightly
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run the action
+        uses: ./
+        with:
+          library-path: roc-json/Json
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Make sure Roc is installed
+        run: roc --version
