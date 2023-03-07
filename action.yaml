@@ -1,0 +1,34 @@
+name: Publish a Roc library
+description: Build and publish a Roc library.
+
+inputs:
+  library-path:
+    description: The path to the library's folder containing a `main.roc` file.
+    required: true
+    default: .
+  roc-path:
+    description: The absolute path to Roc. If this variable is not specified the action will try to find Roc using the `PATH` environment variable.
+    required: true
+    default: roc
+  bundle-type:
+    description: The filetype of the bundled library, either `.tar`, `.tar.gz` or `.tar.br`. Defaults to `.tar.br`.
+    required: true
+    default: .tar.br
+  publish:
+    description: Whether or not the bundled library should be published to the repository's releases. Defaults to onyl uploading when the action is triggered by a release.
+    required: true
+    default: ${{ github.event_name == 'release' }}
+  tag:
+    description: The tag of the release to publish to. Defaults to the current event's name.
+    default: ${{ github.ref }}
+  token:
+    description: A GitHub token.
+    default: ${{ github.server_url == 'https://github.com' && github.token || '' }}
+
+outputs:
+  bundle-path:
+    description: The absolute path to the bundled library.
+
+runs:
+  using: node16
+  main: dist/index.js
