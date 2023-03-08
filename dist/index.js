@@ -9674,15 +9674,19 @@ const publishBundledLibrary = (releaseTag, bundlePath) => __awaiter(void 0, void
     const release = yield OCTOKIT_CLIENT.rest.repos
         .getReleaseByTag(Object.assign(Object.assign({}, gh.context.repo), { tag: releaseTag }))
         .catch((err) => {
-        core.error(`Failed to find release associated with the tag '${bundlePath}', You can go to 'https://github.com/${gh.context.repo.owner}/${gh.context.repo.repo}/releases/new' to create a release.`);
-        throw new Error(err.message);
+        const createReleaseUrl = `https://github.com/${gh.context.repo.owner}/${gh.context.repo.repo}/releases/new`;
+        core.error([
+            `Failed to find release associated with the tag '${bundlePath}'.`,
+            `You can go to '${createReleaseUrl}' to create a release.`,
+        ].join(" "));
+        throw err;
     });
     core.info(`Found release '${release.data.name}' at '${release.url}'.`);
     OCTOKIT_CLIENT.rest.repos
         .uploadReleaseAsset(Object.assign(Object.assign({}, gh.context.repo), { release_id: release.data.id, name: path.basename(bundlePath), data: bundlePath }))
         .catch((err) => {
         core.error(`Failed to upload bundle '${bundlePath}'.`);
-        throw new Error(err.message);
+        throw err;
     });
 });
 const main = () => __awaiter(void 0, void 0, void 0, function* () {

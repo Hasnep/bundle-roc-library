@@ -59,11 +59,15 @@ const publishBundledLibrary = async (
       ...gh.context.repo,
       tag: releaseTag,
     })
-    .catch((err) => {
+    .catch((err: Error) => {
+      const createReleaseUrl = `https://github.com/${gh.context.repo.owner}/${gh.context.repo.repo}/releases/new`;
       core.error(
-        `Failed to find release associated with the tag '${bundlePath}', You can go to 'https://github.com/${gh.context.repo.owner}/${gh.context.repo.repo}/releases/new' to create a release.`,
+        [
+          `Failed to find release associated with the tag '${bundlePath}'.`,
+          `You can go to '${createReleaseUrl}' to create a release.`,
+        ].join(" "),
       );
-      throw new Error((err as Error).message);
+      throw err;
     });
   core.info(`Found release '${release.data.name}' at '${release.url}'.`);
   OCTOKIT_CLIENT.rest.repos
@@ -73,9 +77,9 @@ const publishBundledLibrary = async (
       name: path.basename(bundlePath),
       data: bundlePath,
     })
-    .catch((err) => {
+    .catch((err: Error) => {
       core.error(`Failed to upload bundle '${bundlePath}'.`);
-      throw new Error((err as Error).message);
+      throw err;
     });
 };
 
