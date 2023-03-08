@@ -1,5 +1,5 @@
-name: Publish a Roc library
-description: Build and publish a Roc library.
+name: Bundle a Roc library
+description: Bundle and release a Roc library.
 
 inputs:
   library-path:
@@ -14,12 +14,12 @@ inputs:
     description: The filetype of the bundled library, either `.tar`, `.tar.gz` or `.tar.br`. Defaults to `.tar.br`.
     required: true
     default: .tar.br
-  publish:
-    description: Whether or not the bundled library should be published to the repository's releases. Defaults to onyl uploading when the action is triggered by a release.
+  release:
+    description: Whether or not the bundled library should be uploaded to the repository's releases. Defaults to only uploading when the action is triggered by a release event.
     required: true
     default: ${{ github.event_name == 'release' }}
   tag:
-    description: The tag of the release to publish to. Defaults to the current event's name.
+    description: The tag of the release to upload to. Defaults to the current event's name.
     default: ${{ github.ref }}
   token:
     description: A GitHub token.
