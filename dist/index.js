@@ -9676,7 +9676,7 @@ const publishBundledLibrary = (releaseTag, bundlePath) => __awaiter(void 0, void
         .catch((err) => {
         const createReleaseUrl = `https://github.com/${gh.context.repo.owner}/${gh.context.repo.repo}/releases/new`;
         core.error([
-            `Failed to find release associated with the tag '${bundlePath}'.`,
+            `Failed to find release associated with the tag '${releaseTag}'.`,
             `You can go to '${createReleaseUrl}' to create a release.`,
         ].join(" "));
         throw err;
