@@ -9632,22 +9632,12 @@ const core = __nccwpck_require__(2186);
 const fs = __nccwpck_require__(7147);
 const gh = __nccwpck_require__(5438);
 const path = __nccwpck_require__(1017);
-const TOKEN = core.getInput("token");
-// const AUTH = TOKEN ? `token ${TOKEN}` : undefined;
-const BUNDLE_TYPE = core.getInput("bundle-type", { required: true });
-const LIBRARY_PATH = core.getInput("library-path", { required: true });
-const RELEASE = core.getBooleanInput("release", { required: true });
-const RELEASE_TAG = core
-    .getInput("tag", { required: RELEASE })
-    .replace(/^refs\/(?:tags|heads)\//, "");
-const ROC_PATH = core.getInput("roc-path", { required: true });
-const OCTOKIT_CLIENT = gh.getOctokit(TOKEN);
-const bundleLibrary = (rocPath, libraryPath) => {
+const bundleLibrary = (rocPath, libraryPath, bundleType) => {
     const bundleCommand = [
         rocPath,
         "build",
         "--bundle",
-        BUNDLE_TYPE,
+        bundleType,
         path.join(libraryPath, "main.roc"),
     ]
         .map((x) => (x.includes(" ") ? `"${x}"` : x))
@@ -9656,22 +9646,22 @@ const bundleLibrary = (rocPath, libraryPath) => {
     const stdOut = (0, child_process_1.execSync)(bundleCommand);
     core.info(stdOut.toString());
 };
-const getBundlePath = (libraryPath) => __awaiter(void 0, void 0, void 0, function* () {
-    core.info(`Looking for bundled library in '${libraryPath}' with extension '${BUNDLE_TYPE}'.`);
+const getBundlePath = (libraryPath, bundleType) => __awaiter(void 0, void 0, void 0, function* () {
+    core.info(`Looking for bundled library in '${libraryPath}' with extension '${bundleType}'.`);
     const bundleFileName = fs
         .readdirSync(libraryPath)
-        .find((x) => x.endsWith(BUNDLE_TYPE));
+        .find((x) => x.endsWith(bundleType));
     if (bundleFileName === undefined) {
-        throw new Error(`Couldn't find bundled library in '${libraryPath}' with extension '${BUNDLE_TYPE}'.`);
+        throw new Error(`Couldn't find bundled library in '${libraryPath}' with extension '${bundleType}'.`);
     }
     const bundlePath = path.resolve(path.join(libraryPath, bundleFileName));
     core.info(`Found bundled library at '${bundlePath}'.`);
     return bundlePath;
 });
 // const readBundle = () => {};
-const publishBundledLibrary = (releaseTag, bundlePath) => __awaiter(void 0, void 0, void 0, function* () {
+const publishBundledLibrary = (releaseTag, bundlePath, octokitClient) => __awaiter(void 0, void 0, void 0, function* () {
     core.info(`Publishing to release associated with the tag '${releaseTag}'.`);
-    const release = yield OCTOKIT_CLIENT.rest.repos
+    const release = yield octokitClient.rest.repos
         .getReleaseByTag(Object.assign(Object.assign({}, gh.context.repo), { tag: releaseTag }))
         .catch((err) => {
         const createReleaseUrl = `https://github.com/${gh.context.repo.owner}/${gh.context.repo.repo}/releases/new`;
@@ -9682,7 +9672,7 @@ const publishBundledLibrary = (releaseTag, bundlePath) => __awaiter(void 0, void
         throw err;
     });
     core.info(`Found release '${release.data.name}' at '${release.url}'.`);
-    OCTOKIT_CLIENT.rest.repos
+    octokitClient.rest.repos
         .uploadReleaseAsset(Object.assign(Object.assign({}, gh.context.repo), { release_id: release.data.id, name: path.basename(bundlePath), data: bundlePath }))
         .catch((err) => {
         core.error(`Failed to upload bundle '${bundlePath}'.`);
@@ -9691,11 +9681,24 @@ const publishBundledLibrary = (releaseTag, bundlePath) => __awaiter(void 0, void
 });
 const main = () => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        bundleLibrary(ROC_PATH, LIBRARY_PATH);
-        const bundlePath = yield getBundlePath(LIBRARY_PATH);
+        // Get inputs
+        const isRequired = { required: true };
+        const token = core.getInput("token");
+        const bundleType = core.getInput("bundle-type", isRequired);
+        const libraryPath = core.getInput("library-path", isRequired);
+        const release = core.getBooleanInput("release", isRequired);
+        const releaseTag = core
+            .getInput("tag", { required: release })
+            .replace(/^refs\/(?:tags|heads)\//, "");
+        const rocPath = core.getInput("roc-path", isRequired);
+        const octokitClient = gh.getOctokit(token);
+        // Bundle the library
+        bundleLibrary(rocPath, libraryPath, bundleType);
+        const bundlePath = yield getBundlePath(libraryPath, bundleType);
         core.setOutput("bundle-path", bundlePath);
-        if (RELEASE) {
-            yield publishBundledLibrary(RELEASE_TAG, bundlePath);
+        // Publish the bundle
+        if (release) {
+            yield publishBundledLibrary(releaseTag, bundlePath, octokitClient);
         }
         else {
             core.info(`The input 'publish' was set to false, so skipping publish step.`);

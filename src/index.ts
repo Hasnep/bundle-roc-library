@@ -4,23 +4,19 @@ import * as fs from "fs";
 import * as gh from "@actions/github";
 import * as path from "path";
 
-const TOKEN = core.getInput("token");
-// const AUTH = TOKEN ? `token ${TOKEN}` : undefined;
-const BUNDLE_TYPE = core.getInput("bundle-type", { required: true });
-const LIBRARY_PATH = core.getInput("library-path", { required: true });
-const RELEASE = core.getBooleanInput("release", { required: true });
-const RELEASE_TAG = core
-  .getInput("tag", { required: RELEASE })
-  .replace(/^refs\/(?:tags|heads)\//, "");
-const ROC_PATH = core.getInput("roc-path", { required: true });
-const OCTOKIT_CLIENT = gh.getOctokit(TOKEN);
+type Octokit = ReturnType<typeof gh.getOctokit>;
+type BundleType = ".tar" | ".tar.gz" | ".tar.br";
 
-const bundleLibrary = (rocPath: string, libraryPath: string) => {
+const bundleLibrary = (
+  rocPath: string,
+  libraryPath: string,
+  bundleType: BundleType,
+) => {
   const bundleCommand = [
     rocPath,
     "build",
     "--bundle",
-    BUNDLE_TYPE,
+    bundleType,
     path.join(libraryPath, "main.roc"),
   ]
     .map((x) => (x.includes(" ") ? `"${x}"` : x))
@@ -30,16 +26,19 @@ const bundleLibrary = (rocPath: string, libraryPath: string) => {
   core.info(stdOut.toString());
 };
 
-const getBundlePath = async (libraryPath: string): Promise<string> => {
+const getBundlePath = async (
+  libraryPath: string,
+  bundleType: BundleType,
+): Promise<string> => {
   core.info(
-    `Looking for bundled library in '${libraryPath}' with extension '${BUNDLE_TYPE}'.`,
+    `Looking for bundled library in '${libraryPath}' with extension '${bundleType}'.`,
   );
   const bundleFileName = fs
     .readdirSync(libraryPath)
-    .find((x) => x.endsWith(BUNDLE_TYPE));
+    .find((x) => x.endsWith(bundleType));
   if (bundleFileName === undefined) {
     throw new Error(
-      `Couldn't find bundled library in '${libraryPath}' with extension '${BUNDLE_TYPE}'.`,
+      `Couldn't find bundled library in '${libraryPath}' with extension '${bundleType}'.`,
     );
   }
   const bundlePath = path.resolve(path.join(libraryPath, bundleFileName));
@@ -52,9 +51,10 @@ const getBundlePath = async (libraryPath: string): Promise<string> => {
 const publishBundledLibrary = async (
   releaseTag: string,
   bundlePath: string,
+  octokitClient: Octokit,
 ) => {
   core.info(`Publishing to release associated with the tag '${releaseTag}'.`);
-  const release = await OCTOKIT_CLIENT.rest.repos
+  const release = await octokitClient.rest.repos
     .getReleaseByTag({
       ...gh.context.repo,
       tag: releaseTag,
@@ -70,7 +70,7 @@ const publishBundledLibrary = async (
       throw err;
     });
   core.info(`Found release '${release.data.name}' at '${release.url}'.`);
-  OCTOKIT_CLIENT.rest.repos
+  octokitClient.rest.repos
     .uploadReleaseAsset({
       ...gh.context.repo,
       release_id: release.data.id,
@@ -85,11 +85,26 @@ const publishBundledLibrary = async (
 
 const main = async () => {
   try {
-    bundleLibrary(ROC_PATH, LIBRARY_PATH);
-    const bundlePath = await getBundlePath(LIBRARY_PATH);
+    // Get inputs
+    const isRequired = { required: true };
+    const token = core.getInput("token");
+    const bundleType = core.getInput("bundle-type", isRequired) as BundleType;
+    const libraryPath = core.getInput("library-path", isRequired);
+    const release = core.getBooleanInput("release", isRequired);
+    const releaseTag = core
+      .getInput("tag", { required: release })
+      .replace(/^refs\/(?:tags|heads)\//, "");
+    const rocPath = core.getInput("roc-path", isRequired);
+    const octokitClient = gh.getOctokit(token);
+
+    // Bundle the library
+    bundleLibrary(rocPath, libraryPath, bundleType);
+    const bundlePath = await getBundlePath(libraryPath, bundleType);
     core.setOutput("bundle-path", bundlePath);
-    if (RELEASE) {
-      await publishBundledLibrary(RELEASE_TAG, bundlePath);
+
+    // Publish the bundle
+    if (release) {
+      await publishBundledLibrary(releaseTag, bundlePath, octokitClient);
     } else {
       core.info(
         `The input 'publish' was set to false, so skipping publish step.`,
