@@ -75,7 +75,11 @@ const publishBundledLibrary = async (
       ...gh.context.repo,
       release_id: release.data.id,
       name: path.basename(bundlePath),
-      data: bundlePath,
+      data: fs.createReadStream(bundlePath) as unknown as string,
+      headers: {
+        "content-length": fs.statSync(bundlePath).size,
+        "content-type": "application/octet-stream",
+      },
     })
     .catch((err: Error) => {
       core.error(`Failed to upload bundle '${bundlePath}'.`);
