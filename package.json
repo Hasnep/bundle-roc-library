@@ -1,8 +1,8 @@
 {
-  "name": "publish-roc-library",
+  "name": "bundle-roc-library",
   "version": "0.0.0",
   "private": true,
-  "description": "A GitHub Action to bundle and publish a Roc library.",
+  "description": "A GitHub Action to bundle and release a Roc library.",
   "main": "dist/index.js",
   "scripts": {
     "build": "ncc build --license licenses.txt --out dist/ src/index.ts",
@@ -14,7 +14,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hasnep/publish-roc-library.git"
+    "url": "git+https://github.com/hasnep/bundle-roc-library.git"
   },
   "dependencies": {
     "@actions/core": "^1.10.0",

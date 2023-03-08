@@ -9636,9 +9636,9 @@ const TOKEN = core.getInput("token");
 // const AUTH = TOKEN ? `token ${TOKEN}` : undefined;
 const BUNDLE_TYPE = core.getInput("bundle-type", { required: true });
 const LIBRARY_PATH = core.getInput("library-path", { required: true });
-const PUBLISH = core.getBooleanInput("publish", { required: true });
+const RELEASE = core.getBooleanInput("release", { required: true });
 const RELEASE_TAG = core
-    .getInput("tag", { required: PUBLISH })
+    .getInput("tag", { required: RELEASE })
     .replace(/^refs\/(?:tags|heads)\//, "");
 const ROC_PATH = core.getInput("roc-path", { required: true });
 const OCTOKIT_CLIENT = gh.getOctokit(TOKEN);
@@ -9694,7 +9694,7 @@ const main = () => __awaiter(void 0, void 0, void 0, function* () {
         bundleLibrary(ROC_PATH, LIBRARY_PATH);
         const bundlePath = yield getBundlePath(LIBRARY_PATH);
         core.setOutput("bundle-path", bundlePath);
-        if (PUBLISH) {
+        if (RELEASE) {
             yield publishBundledLibrary(RELEASE_TAG, bundlePath);
         }
         else {
