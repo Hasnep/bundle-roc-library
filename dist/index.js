@@ -9639,7 +9639,7 @@ const LIBRARY_PATH = core.getInput("library-path", { required: true });
 const PUBLISH = core.getBooleanInput("publish", { required: true });
 const RELEASE_TAG = core
     .getInput("tag", { required: PUBLISH })
-    .replace(/^refs\/(?:tags|heads)/, "");
+    .replace(/^refs\/(?:tags|heads)\//, "");
 const ROC_PATH = core.getInput("roc-path", { required: true });
 const OCTOKIT_CLIENT = gh.getOctokit(TOKEN);
 const bundleLibrary = (rocPath, libraryPath) => {
