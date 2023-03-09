@@ -1,0 +1,33 @@
+name: Check transpiled
+
+on:
+  # Run on all PRs
+  pull_request:
+  # Run when a PR is merged into main
+  push:
+    branches:
+      - main
+
+jobs:
+  check-transpiled:
+    name: Check transpiled
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v3
+      - name: Install Node.JS
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+      - name: Install Node.JS dependencies
+        run: npm ci
+      - name: Transpile Typescript
+        run: npm run build
+      - name: Check if JavaScript files changed
+        run: |
+          if $(test -z "$(git status --porcelain dist/index.js)"); then
+            echo "::debug::Project was transpiled."
+          else
+            echo "::error::Project was not transpiled, run 'npm run build' to transpile the TypeScript files to JavaScript." \
+            && exit 1
+          fi

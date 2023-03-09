@@ -38,14 +38,6 @@ repos:
           - "@typescript-eslint/eslint-plugin@5.54.0"
           - "@typescript-eslint/parser@5.54.0"
           - eslint@8.35.0
-  - repo: local
-    hooks:
-      - name: Make sure Typescript code has been transpiled
-        id: check-built
-        language: system
-        entry: npm ci && npm run build
-        types: [ts]
-        pass_filenames: false
 
   # YAML
   - repo: https://github.com/pre-commit/pre-commit-hooks
