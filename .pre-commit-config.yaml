@@ -28,6 +28,8 @@ repos:
       - name: Format TypeScript files
         id: prettier
         types: [ts]
+        additional_dependencies:
+          - prettier@2.8.4
   - repo: https://github.com/pre-commit/mirrors-eslint
     rev: v8.35.0
     hooks:

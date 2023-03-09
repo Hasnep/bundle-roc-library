@@ -10,7 +10,7 @@ type BundleType = ".tar" | ".tar.gz" | ".tar.br";
 const bundleLibrary = (
   rocPath: string,
   libraryPath: string,
-  bundleType: BundleType,
+  bundleType: BundleType
 ) => {
   const bundleCommand = [
     rocPath,
@@ -28,17 +28,17 @@ const bundleLibrary = (
 
 const getBundlePath = async (
   libraryPath: string,
-  bundleType: BundleType,
+  bundleType: BundleType
 ): Promise<string> => {
   core.info(
-    `Looking for bundled library in '${libraryPath}' with extension '${bundleType}'.`,
+    `Looking for bundled library in '${libraryPath}' with extension '${bundleType}'.`
   );
   const bundleFileName = fs
     .readdirSync(libraryPath)
     .find((x) => x.endsWith(bundleType));
   if (bundleFileName === undefined) {
     throw new Error(
-      `Couldn't find bundled library in '${libraryPath}' with extension '${bundleType}'.`,
+      `Couldn't find bundled library in '${libraryPath}' with extension '${bundleType}'.`
     );
   }
   const bundlePath = path.resolve(path.join(libraryPath, bundleFileName));
@@ -51,7 +51,7 @@ const getBundlePath = async (
 const publishBundledLibrary = async (
   releaseTag: string,
   bundlePath: string,
-  octokitClient: Octokit,
+  octokitClient: Octokit
 ) => {
   core.info(`Publishing to release associated with the tag '${releaseTag}'.`);
   const release = await octokitClient.rest.repos
@@ -65,7 +65,7 @@ const publishBundledLibrary = async (
         [
           `Failed to find release associated with the tag '${releaseTag}'.`,
           `You can go to '${createReleaseUrl}' to create a release.`,
-        ].join(" "),
+        ].join(" ")
       );
       throw err;
     });
@@ -111,7 +111,7 @@ const main = async () => {
       await publishBundledLibrary(releaseTag, bundlePath, octokitClient);
     } else {
       core.info(
-        `The input 'publish' was set to false, so skipping publish step.`,
+        `The input 'publish' was set to false, so skipping publish step.`
       );
     }
   } catch (err) {
