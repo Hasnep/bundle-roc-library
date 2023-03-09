@@ -23,7 +23,7 @@ inputs:
     default: ${{ github.ref }}
   token:
     description: A GitHub token.
-    default: ${{ github.server_url == 'https://github.com' && github.token || '' }}
+    default: ${{ github.token }}
 
 outputs:
   bundle-path:
