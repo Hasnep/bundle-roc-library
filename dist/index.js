@@ -9673,7 +9673,10 @@ const publishBundledLibrary = (releaseTag, bundlePath, octokitClient) => __await
     });
     core.info(`Found release '${release.data.name}' at '${release.url}'.`);
     octokitClient.rest.repos
-        .uploadReleaseAsset(Object.assign(Object.assign({}, gh.context.repo), { release_id: release.data.id, name: path.basename(bundlePath), data: bundlePath }))
+        .uploadReleaseAsset(Object.assign(Object.assign({}, gh.context.repo), { release_id: release.data.id, name: path.basename(bundlePath), data: fs.createReadStream(bundlePath), headers: {
+            "content-length": fs.statSync(bundlePath).size,
+            "content-type": "application/octet-stream",
+        } }))
         .catch((err) => {
         core.error(`Failed to upload bundle '${bundlePath}'.`);
         throw err;
