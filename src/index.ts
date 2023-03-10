@@ -47,8 +47,6 @@ const getBundlePath = async (
   return bundlePath;
 };
 
-// const readBundle = () => {};
-
 const publishBundledLibrary = async (
   releaseTag: string,
   bundlePath: string,
