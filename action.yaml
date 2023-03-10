@@ -2,10 +2,9 @@ name: Bundle a Roc library
 description: Bundle and release a Roc library.
 
 inputs:
-  library-path:
-    description: The path to the library's folder containing a `main.roc` file.
+  library:
+    description: The path to the library's entrypoint file.
     required: true
-    default: .
   roc-path:
     description: The absolute path to Roc. If this variable is not specified the action will try to find Roc using the `PATH` environment variable.
     required: true

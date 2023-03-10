@@ -9,7 +9,7 @@ type BundleType = ".tar" | ".tar.gz" | ".tar.br";
 
 const bundleLibrary = (
   rocPath: string,
-  libraryPath: string,
+  libraryEntrypointPath: string,
   bundleType: BundleType
 ) => {
   const bundleCommand = [
@@ -17,9 +17,9 @@ const bundleLibrary = (
     "build",
     "--bundle",
     bundleType,
-    path.join(libraryPath, "main.roc"),
+    libraryEntrypointPath,
   ]
-    .map((x) => (x.includes(" ") ? `"${x}"` : x))
+    .map((x) => (x.includes(" ") ? `"${x}"` : x)) // Add quotes to paths that contain spaces
     .join(" ");
   core.info(`Running bundle command '${bundleCommand}'.`);
   const stdOut = execSync(bundleCommand);
@@ -27,21 +27,22 @@ const bundleLibrary = (
 };
 
 const getBundlePath = async (
-  libraryPath: string,
+  libraryEntrypointPath: string,
   bundleType: BundleType
 ): Promise<string> => {
+  const libraryFolder = path.dirname(libraryEntrypointPath);
   core.info(
-    `Looking for bundled library in '${libraryPath}' with extension '${bundleType}'.`
+    `Looking for bundled library in '${libraryFolder}' with extension '${bundleType}'.`
   );
   const bundleFileName = fs
-    .readdirSync(libraryPath)
+    .readdirSync(libraryFolder)
     .find((x) => x.endsWith(bundleType));
   if (bundleFileName === undefined) {
     throw new Error(
-      `Couldn't find bundled library in '${libraryPath}' with extension '${bundleType}'.`
+      `Couldn't find bundled library in '${libraryFolder}' with extension '${bundleType}'.`
     );
   }
-  const bundlePath = path.resolve(path.join(libraryPath, bundleFileName));
+  const bundlePath = path.resolve(path.join(libraryFolder, bundleFileName));
   core.info(`Found bundled library at '${bundlePath}'.`);
   return bundlePath;
 };
@@ -93,7 +94,7 @@ const main = async () => {
     const isRequired = { required: true };
     const token = core.getInput("token");
     const bundleType = core.getInput("bundle-type", isRequired) as BundleType;
-    const libraryPath = core.getInput("library-path", isRequired);
+    const libraryEntrypointPath = core.getInput("library", isRequired);
     const release = core.getBooleanInput("release", isRequired);
     const releaseTag = core
       .getInput("tag", { required: release })
@@ -102,8 +103,8 @@ const main = async () => {
     const octokitClient = gh.getOctokit(token);
 
     // Bundle the library
-    bundleLibrary(rocPath, libraryPath, bundleType);
-    const bundlePath = await getBundlePath(libraryPath, bundleType);
+    bundleLibrary(rocPath, libraryEntrypointPath, bundleType);
+    const bundlePath = await getBundlePath(libraryEntrypointPath, bundleType);
     core.setOutput("bundle-path", bundlePath);
 
     // Publish the bundle
