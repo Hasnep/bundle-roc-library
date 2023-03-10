@@ -9659,7 +9659,6 @@ const getBundlePath = (libraryEntrypointPath, bundleType) => __awaiter(void 0, v
     core.info(`Found bundled library at '${bundlePath}'.`);
     return bundlePath;
 });
-// const readBundle = () => {};
 const publishBundledLibrary = (releaseTag, bundlePath, octokitClient) => __awaiter(void 0, void 0, void 0, function* () {
     core.info(`Publishing to release associated with the tag '${releaseTag}'.`);
     const release = yield octokitClient.rest.repos
