@@ -9632,29 +9632,30 @@ const core = __nccwpck_require__(2186);
 const fs = __nccwpck_require__(7147);
 const gh = __nccwpck_require__(5438);
 const path = __nccwpck_require__(1017);
-const bundleLibrary = (rocPath, libraryPath, bundleType) => {
+const bundleLibrary = (rocPath, libraryEntrypointPath, bundleType) => {
     const bundleCommand = [
         rocPath,
         "build",
         "--bundle",
         bundleType,
-        path.join(libraryPath, "main.roc"),
+        libraryEntrypointPath,
     ]
-        .map((x) => (x.includes(" ") ? `"${x}"` : x))
+        .map((x) => (x.includes(" ") ? `"${x}"` : x)) // Add quotes to paths that contain spaces
         .join(" ");
     core.info(`Running bundle command '${bundleCommand}'.`);
     const stdOut = (0, child_process_1.execSync)(bundleCommand);
     core.info(stdOut.toString());
 };
-const getBundlePath = (libraryPath, bundleType) => __awaiter(void 0, void 0, void 0, function* () {
-    core.info(`Looking for bundled library in '${libraryPath}' with extension '${bundleType}'.`);
+const getBundlePath = (libraryEntrypointPath, bundleType) => __awaiter(void 0, void 0, void 0, function* () {
+    const libraryFolder = path.dirname(libraryEntrypointPath);
+    core.info(`Looking for bundled library in '${libraryFolder}' with extension '${bundleType}'.`);
     const bundleFileName = fs
-        .readdirSync(libraryPath)
+        .readdirSync(libraryFolder)
         .find((x) => x.endsWith(bundleType));
     if (bundleFileName === undefined) {
-        throw new Error(`Couldn't find bundled library in '${libraryPath}' with extension '${bundleType}'.`);
+        throw new Error(`Couldn't find bundled library in '${libraryFolder}' with extension '${bundleType}'.`);
     }
-    const bundlePath = path.resolve(path.join(libraryPath, bundleFileName));
+    const bundlePath = path.resolve(path.join(libraryFolder, bundleFileName));
     core.info(`Found bundled library at '${bundlePath}'.`);
     return bundlePath;
 });
@@ -9688,7 +9689,7 @@ const main = () => __awaiter(void 0, void 0, void 0, function* () {
         const isRequired = { required: true };
         const token = core.getInput("token");
         const bundleType = core.getInput("bundle-type", isRequired);
-        const libraryPath = core.getInput("library-path", isRequired);
+        const libraryEntrypointPath = core.getInput("library", isRequired);
         const release = core.getBooleanInput("release", isRequired);
         const releaseTag = core
             .getInput("tag", { required: release })
@@ -9696,8 +9697,8 @@ const main = () => __awaiter(void 0, void 0, void 0, function* () {
         const rocPath = core.getInput("roc-path", isRequired);
         const octokitClient = gh.getOctokit(token);
         // Bundle the library
-        bundleLibrary(rocPath, libraryPath, bundleType);
-        const bundlePath = yield getBundlePath(libraryPath, bundleType);
+        bundleLibrary(rocPath, libraryEntrypointPath, bundleType);
+        const bundlePath = yield getBundlePath(libraryEntrypointPath, bundleType);
         core.setOutput("bundle-path", bundlePath);
         // Publish the bundle
         if (release) {

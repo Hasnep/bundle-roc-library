@@ -32,7 +32,7 @@ jobs:
       - name: Run the action
         uses: ./
         with:
-          library-path: roc-json/Json
+          library: roc-json/Json/main.roc
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Make sure Roc is installed
         run: roc --version
