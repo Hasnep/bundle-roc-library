@@ -18,8 +18,7 @@ jobs:
     name: Bundle and release library
     runs-on: ubuntu-latest
     permissions:
-      # Used to upload the bundled library
-      contents: write
+      contents: write # Used to upload the bundled library
     steps:
       - name: Check out the repository
         uses: actions/checkout@v3
@@ -30,7 +29,6 @@ jobs:
       - name: Bundle and release the library
         uses: hasnep/bundle-roc-library@main
         with:
-          # Path to the folder containing the library's main.roc
-          library-path: path/to/src
+          library: path/to/main.roc # Path to the library's entrypoint
           token: ${{ github.token }}
 ```
