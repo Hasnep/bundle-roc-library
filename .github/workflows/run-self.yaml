@@ -30,9 +30,11 @@ jobs:
           roc-version: nightly
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run the action
+        id: bundle-library
         uses: ./
         with:
           library: roc-html/src/main.roc
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Make sure Roc is installed
-        run: roc --version
+      - name: Check bundled library exists
+        run: |
+          test -f "${{ steps.bundle-library.outputs.bundle-path }}"
