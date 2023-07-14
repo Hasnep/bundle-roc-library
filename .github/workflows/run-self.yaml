@@ -22,8 +22,8 @@ jobs:
       - name: Checkout an example repo
         uses: actions/checkout@v3
         with:
-          repository: Hasnep/roc-json
-          path: roc-json
+          repository: Hasnep/roc-html
+          path: roc-html
       - name: Install Roc
         uses: Hasnep/setup-roc@main
         with:
@@ -32,7 +32,7 @@ jobs:
       - name: Run the action
         uses: ./
         with:
-          library: roc-json/Json/main.roc
+          library: roc-html/src/main.roc
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Make sure Roc is installed
         run: roc --version
