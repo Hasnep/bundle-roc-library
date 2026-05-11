@@ -14,27 +14,55 @@ on:
 
 jobs:
   run-self:
-    name: Run self
+    name: Run self (${{ matrix.cli }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - cli: legacy
+            roc-version: alpha4-rolling
+            example-repo: Hasnep/roc-html
+            checkout-path: roc-html
+            library: roc-html/src/main.roc
+            expected-extension-regex: "\\.tar\\.br$"
+          - cli: new
+            roc-version: nightly-new-compiler
+            example-repo: imclerran/rtils
+            checkout-path: rtils
+            library: rtils/package/main.roc
+            expected-extension-regex: "\\.tar\\.zst$"
     steps:
       - name: Checkout the repo
         uses: actions/checkout@v3
       - name: Checkout an example repo
         uses: actions/checkout@v3
         with:
-          repository: Hasnep/roc-html
-          path: roc-html
+          repository: ${{ matrix.example-repo }}
+          path: ${{ matrix.checkout-path }}
       - name: Install Roc
-        uses: Hasnep/setup-roc@main
+        uses: roc-lang/setup-roc@main
         with:
-          roc-version: nightly
-          token: ${{ secrets.GITHUB_TOKEN }}
+          version: ${{ matrix.roc-version }}
       - name: Run the action
         id: bundle-library
         uses: ./
         with:
-          library: roc-html/src/main.roc
+          library: ${{ matrix.library }}
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Check bundled library exists
+      - name: Check bundled library exists and has the correct extension
+        env:
+          BUNDLE_PATH: ${{ steps.bundle-library.outputs.bundle-path }}
         run: |
-          test -f "${{ steps.bundle-library.outputs.bundle-path }}"
+          if $(test -f "$BUNDLE_PATH"); then \
+            echo "$BUNDLE_PATH exists."
+          else
+            echo "::error::Expected $BUNDLE_PATH to exist."
+            exit 1
+          fi
+          if [[ $BUNDLE_PATH =~ ${{ matrix.expected-extension-regex }} ]]; then \
+            echo "$BUNDLE_PATH matches the expected extension ${{ matrix.expected-extension-regex }}."
+          else
+            echo "::error::Expected extension to match ${{ matrix.expected-extension-regex }}, got $BUNDLE_PATH"
+            exit 1
+          fi

@@ -10,9 +10,10 @@ inputs:
     required: true
     default: roc
   bundle-type:
-    description: The filetype of the bundled library, either `.tar`, `.tar.gz` or `.tar.br`. Defaults to `.tar.br`.
-    required: true
+    description: The filetype of the bundled library, either `.tar`, `.tar.gz` or `.tar.br`. Only applies to the legacy Roc CLI; ignored (with a warning) on the new `roc bundle` CLI, which always produces `.tar.zst`. Defaults to `.tar.br`.
     default: .tar.br
+  compression:
+    description: zstd compression level (1–22) for the new `roc bundle` CLI. Ignored (with a warning) on the legacy CLI. If unset, the compiler's default is used.
   release:
     description: Whether or not the bundled library should be uploaded to the repository's releases. Defaults to only uploading when the action is triggered by a release event.
     required: true

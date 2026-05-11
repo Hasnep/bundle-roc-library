@@ -5,13 +5,48 @@ import * as gh from "@actions/github";
 import * as path from "path";
 
 type Octokit = ReturnType<typeof gh.getOctokit>;
-type BundleType = ".tar" | ".tar.gz" | ".tar.br";
+type LegacyBundleType = ".tar" | ".tar.gz" | ".tar.br";
+type BundleType = LegacyBundleType | ".tar.zst";
+type CliVersion = "legacy" | "new";
 
-const bundleLibrary = (
+const detectCli = (rocPath: string): CliVersion => {
+  // The legacy compiler prints global help (exit 0) for unknown subcommands, so an exit code alone can't distinguish CLIs.
+  // Match on a flag name unique to the new `roc bundle` subcommand.
+  try {
+    const out = execSync(`${quoteIfSpaces(rocPath)} bundle --help`, {
+      stdio: ["ignore", "pipe", "ignore"],
+    }).toString();
+    return out.includes("--output-dir") ? "new" : "legacy";
+  } catch {
+    return "legacy";
+  }
+};
+
+const quoteIfSpaces = (x: string): string => (x.includes(" ") ? `"${x}"` : x);
+
+const findRocFiles = (dir: string): string[] => {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...findRocFiles(full));
+    } else if (entry.name.endsWith(".roc")) {
+      files.push(full);
+    }
+  }
+  return files;
+};
+
+const bundleLibraryLegacy = (
   rocPath: string,
   libraryEntrypointPath: string,
-  bundleType: BundleType,
+  bundleType: LegacyBundleType,
+  compression: string,
 ) => {
+  if (compression !== "") {
+    core.warning("Ignoring 'compression' input on legacy Roc CLI.");
+  }
   const bundleCommand = [
     rocPath,
     "build",
@@ -19,27 +54,62 @@ const bundleLibrary = (
     bundleType,
     libraryEntrypointPath,
   ]
-    .map((x) => (x.includes(" ") ? `"${x}"` : x)) // Add quotes to paths that contain spaces
+    .map(quoteIfSpaces)
     .join(" ");
   core.info(`Running bundle command '${bundleCommand}'.`);
   const stdOut = execSync(bundleCommand);
   core.info(stdOut.toString());
 };
 
-const getBundlePath = async (
+const bundleLibraryNew = (
+  rocPath: string,
   libraryEntrypointPath: string,
   bundleType: BundleType,
+  compression: string,
+) => {
+  if (bundleType !== ".tar.zst") {
+    core.warning(
+      "Ignoring 'bundle-type' input on new Roc CLI; bundles are always '.tar.zst'.",
+    );
+  }
+  // The new `roc bundle` does not auto-resolve imports — every source file
+  // must be passed on the command line. It also rejects absolute paths and
+  // paths containing `..` (roc-lang/roc#9406). Run it with cwd set to the
+  // entry's directory and pass every source as a path relative to that
+  // directory; output goes to `.` (the same directory).
+  const entryDir = path.resolve(path.dirname(libraryEntrypointPath));
+  const sourceFiles = findRocFiles(entryDir).map((f) =>
+    path.relative(entryDir, f),
+  );
+  const bundleCommand = [
+    rocPath,
+    "bundle",
+    "--output-dir",
+    ".",
+    ...(compression !== "" ? ["--compression", compression] : []),
+    ...sourceFiles,
+  ]
+    .map(quoteIfSpaces)
+    .join(" ");
+  core.info(`Running bundle command '${bundleCommand}' in '${entryDir}'.`);
+  const stdOut = execSync(bundleCommand, { cwd: entryDir });
+  core.info(stdOut.toString());
+};
+
+const getBundlePath = async (
+  libraryEntrypointPath: string,
+  extension: BundleType,
 ): Promise<string> => {
   const libraryFolder = path.dirname(libraryEntrypointPath);
   core.info(
-    `Looking for bundled library in '${libraryFolder}' with extension '${bundleType}'.`,
+    `Looking for bundled library in '${libraryFolder}' with extension '${extension}'.`,
   );
   const bundleFileName = fs
     .readdirSync(libraryFolder)
-    .find((x) => x.endsWith(bundleType));
+    .find((x) => x.endsWith(extension));
   if (bundleFileName === undefined) {
     throw new Error(
-      `Couldn't find bundled library in '${libraryFolder}' with extension '${bundleType}'.`,
+      `Couldn't find bundled library in '${libraryFolder}' with extension '${extension}'.`,
     );
   }
   const bundlePath = path.resolve(path.join(libraryFolder, bundleFileName));
@@ -91,7 +161,8 @@ const main = async () => {
     // Get inputs
     const isRequired = { required: true };
     const token = core.getInput("token");
-    const bundleType = core.getInput("bundle-type", isRequired) as BundleType;
+    const bundleType = core.getInput("bundle-type") as LegacyBundleType;
+    const compression = core.getInput("compression");
     const libraryEntrypointPath = core.getInput("library", isRequired);
     const release = core.getBooleanInput("release", isRequired);
     const releaseTag = core
@@ -100,9 +171,27 @@ const main = async () => {
     const rocPath = core.getInput("roc-path", isRequired);
     const octokitClient = gh.getOctokit(token);
 
+    // Detect which Roc CLI we're talking to
+    const cli = detectCli(rocPath);
+    core.info(`Detected ${cli} Roc CLI.`);
+
     // Bundle the library
-    bundleLibrary(rocPath, libraryEntrypointPath, bundleType);
-    const bundlePath = await getBundlePath(libraryEntrypointPath, bundleType);
+    if (cli === "new") {
+      bundleLibraryNew(rocPath, libraryEntrypointPath, bundleType, compression);
+    } else {
+      bundleLibraryLegacy(
+        rocPath,
+        libraryEntrypointPath,
+        bundleType,
+        compression,
+      );
+    }
+
+    const expectedExtension = cli === "new" ? ".tar.zst" : bundleType;
+    const bundlePath = await getBundlePath(
+      libraryEntrypointPath,
+      expectedExtension,
+    );
     core.setOutput("bundle-path", bundlePath);
 
     // Publish the bundle
