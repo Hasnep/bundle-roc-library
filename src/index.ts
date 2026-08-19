@@ -1,5 +1,6 @@
 import { execSync } from "node:child_process";
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import * as core from "@actions/core";
 import * as gh from "@actions/github";
@@ -29,7 +30,8 @@ const bundleLibraryLegacy = (
 	libraryEntrypointPath: string,
 	bundleType: LegacyBundleType,
 	compression: string,
-) => {
+): string => {
+	const libraryEntrypointPathAbsolute = path.resolve(libraryEntrypointPath);
 	if (compression !== "") {
 		core.warning("Ignoring 'compression' input on legacy Roc CLI.");
 	}
@@ -38,13 +40,14 @@ const bundleLibraryLegacy = (
 		"build",
 		"--bundle",
 		bundleType,
-		libraryEntrypointPath,
+		libraryEntrypointPathAbsolute,
 	]
 		.map(quoteIfSpaces)
 		.join(" ");
 	core.info(`Running bundle command '${bundleCommand}'.`);
 	const stdOut = execSync(bundleCommand);
 	core.info(stdOut.toString());
+	return path.dirname(libraryEntrypointPathAbsolute);
 };
 
 const bundleLibraryNew = (
@@ -52,45 +55,59 @@ const bundleLibraryNew = (
 	libraryEntrypointPath: string,
 	bundleType: BundleType,
 	compression: string,
-) => {
+): string => {
+	const libraryEntrypointPathAbsolute = path.resolve(libraryEntrypointPath);
 	if (bundleType !== ".tar.zst") {
 		core.warning(
 			"Ignoring 'bundle-type' input on new Roc CLI; bundles are always '.tar.zst'.",
 		);
 	}
-	const outputDir = path.dirname(libraryEntrypointPath);
+	const outputDir = path.join(os.tmpdir(), "roc-library-");
+	fs.mkdir(outputDir, "077", (err) => {
+		if (err) {
+			core.error(err);
+		}
+	});
 	const bundleCommand = [
 		rocPath,
 		"bundle",
 		"--output-dir",
 		outputDir,
 		...(compression !== "" ? ["--compression", compression] : []),
-		libraryEntrypointPath,
+		libraryEntrypointPathAbsolute,
 	]
 		.map(quoteIfSpaces)
 		.join(" ");
-	core.info(`Running bundle command '${bundleCommand}'.`);
-	const stdOut = execSync(bundleCommand);
+	const entrypointDir = path.resolve(
+		path.dirname(libraryEntrypointPathAbsolute),
+	);
+	core.info(`Running bundle command '${bundleCommand}' in '${entrypointDir}'.`);
+	const stdOut = execSync(
+		bundleCommand,
+		// At the moment the new Roc compiler needs to run the bundle command in the same directory as the entrypoint file
+		// See https://github.com/roc-lang/roc/issues/10845 for more information
+		{ cwd: entrypointDir },
+	);
 	core.info(stdOut.toString());
+	return outputDir;
 };
 
 const getBundlePath = async (
-	libraryEntrypointPath: string,
+	outputDir: string,
 	extension: BundleType,
 ): Promise<string> => {
-	const libraryFolder = path.dirname(libraryEntrypointPath);
 	core.info(
-		`Looking for bundled library in '${libraryFolder}' with extension '${extension}'.`,
+		`Looking for bundled library in '${outputDir}' with extension '${extension}'.`,
 	);
 	const bundleFileName = fs
-		.readdirSync(libraryFolder)
-		.find((x) => x.endsWith(extension));
+		.readdirSync(outputDir)
+		.find((x: string) => x.endsWith(extension));
 	if (bundleFileName === undefined) {
 		throw new Error(
-			`Couldn't find bundled library in '${libraryFolder}' with extension '${extension}'.`,
+			`Couldn't find bundled library in '${outputDir}' with extension '${extension}'.`,
 		);
 	}
-	const bundlePath = path.resolve(path.join(libraryFolder, bundleFileName));
+	const bundlePath = path.resolve(path.join(outputDir, bundleFileName));
 	core.info(`Found bundled library at '${bundlePath}'.`);
 	return bundlePath;
 };
@@ -154,22 +171,23 @@ const main = async () => {
 		core.info(`Detected ${cli} Roc CLI.`);
 
 		// Bundle the library
-		if (cli === "new") {
-			bundleLibraryNew(rocPath, libraryEntrypointPath, bundleType, compression);
-		} else {
-			bundleLibraryLegacy(
-				rocPath,
-				libraryEntrypointPath,
-				bundleType,
-				compression,
-			);
-		}
+		const outputDir =
+			cli === "new"
+				? bundleLibraryNew(
+						rocPath,
+						libraryEntrypointPath,
+						bundleType,
+						compression,
+					)
+				: bundleLibraryLegacy(
+						rocPath,
+						libraryEntrypointPath,
+						bundleType,
+						compression,
+					);
 
 		const expectedExtension = cli === "new" ? ".tar.zst" : bundleType;
-		const bundlePath = await getBundlePath(
-			libraryEntrypointPath,
-			expectedExtension,
-		);
+		const bundlePath = await getBundlePath(outputDir, expectedExtension);
 		core.setOutput("bundle-path", bundlePath);
 
 		// Publish the bundle

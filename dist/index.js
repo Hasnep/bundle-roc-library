@@ -9617,6 +9617,39 @@ function wrappy (fn, cb) {
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -9628,10 +9661,11 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const node_child_process_1 = __nccwpck_require__(1421);
-const fs = __nccwpck_require__(3024);
-const path = __nccwpck_require__(6760);
-const core = __nccwpck_require__(7484);
-const gh = __nccwpck_require__(3228);
+const fs = __importStar(__nccwpck_require__(3024));
+const os = __importStar(__nccwpck_require__(8161));
+const path = __importStar(__nccwpck_require__(6760));
+const core = __importStar(__nccwpck_require__(7484));
+const gh = __importStar(__nccwpck_require__(3228));
 const detectCli = (rocPath) => {
     // The legacy compiler prints global help (exit 0) for unknown subcommands, so an exit code alone can't distinguish CLIs.
     // Match on a flag name unique to the new `roc bundle` subcommand.
@@ -9647,6 +9681,7 @@ const detectCli = (rocPath) => {
 };
 const quoteIfSpaces = (x) => (x.includes(" ") ? `"${x}"` : x);
 const bundleLibraryLegacy = (rocPath, libraryEntrypointPath, bundleType, compression) => {
+    const libraryEntrypointPathAbsolute = path.resolve(libraryEntrypointPath);
     if (compression !== "") {
         core.warning("Ignoring 'compression' input on legacy Roc CLI.");
     }
@@ -9655,43 +9690,54 @@ const bundleLibraryLegacy = (rocPath, libraryEntrypointPath, bundleType, compres
         "build",
         "--bundle",
         bundleType,
-        libraryEntrypointPath,
+        libraryEntrypointPathAbsolute,
     ]
         .map(quoteIfSpaces)
         .join(" ");
     core.info(`Running bundle command '${bundleCommand}'.`);
     const stdOut = (0, node_child_process_1.execSync)(bundleCommand);
     core.info(stdOut.toString());
+    return path.dirname(libraryEntrypointPathAbsolute);
 };
 const bundleLibraryNew = (rocPath, libraryEntrypointPath, bundleType, compression) => {
+    const libraryEntrypointPathAbsolute = path.resolve(libraryEntrypointPath);
     if (bundleType !== ".tar.zst") {
         core.warning("Ignoring 'bundle-type' input on new Roc CLI; bundles are always '.tar.zst'.");
     }
-    const outputDir = path.dirname(libraryEntrypointPath);
+    const outputDir = path.join(os.tmpdir(), "roc-library");
+    fs.mkdir(outputDir, "077", (err) => {
+        if (err) {
+            core.error(err);
+        }
+    });
     const bundleCommand = [
         rocPath,
         "bundle",
         "--output-dir",
         outputDir,
         ...(compression !== "" ? ["--compression", compression] : []),
-        libraryEntrypointPath,
+        libraryEntrypointPathAbsolute,
     ]
         .map(quoteIfSpaces)
         .join(" ");
-    core.info(`Running bundle command '${bundleCommand}'.`);
-    const stdOut = (0, node_child_process_1.execSync)(bundleCommand);
+    const entrypointDir = path.resolve(path.dirname(libraryEntrypointPathAbsolute));
+    core.info(`Running bundle command '${bundleCommand}' in '${entrypointDir}'.`);
+    const stdOut = (0, node_child_process_1.execSync)(bundleCommand, 
+    // At the moment the new Roc compiler needs to run the bundle command in the same directory as the entrypoint file
+    // See https://github.com/roc-lang/roc/issues/10845 for more information
+    { cwd: entrypointDir });
     core.info(stdOut.toString());
+    return outputDir;
 };
-const getBundlePath = (libraryEntrypointPath, extension) => __awaiter(void 0, void 0, void 0, function* () {
-    const libraryFolder = path.dirname(libraryEntrypointPath);
-    core.info(`Looking for bundled library in '${libraryFolder}' with extension '${extension}'.`);
+const getBundlePath = (outputDir, extension) => __awaiter(void 0, void 0, void 0, function* () {
+    core.info(`Looking for bundled library in '${outputDir}' with extension '${extension}'.`);
     const bundleFileName = fs
-        .readdirSync(libraryFolder)
+        .readdirSync(outputDir)
         .find((x) => x.endsWith(extension));
     if (bundleFileName === undefined) {
-        throw new Error(`Couldn't find bundled library in '${libraryFolder}' with extension '${extension}'.`);
+        throw new Error(`Couldn't find bundled library in '${outputDir}' with extension '${extension}'.`);
     }
-    const bundlePath = path.resolve(path.join(libraryFolder, bundleFileName));
+    const bundlePath = path.resolve(path.join(outputDir, bundleFileName));
     core.info(`Found bundled library at '${bundlePath}'.`);
     return bundlePath;
 });
@@ -9736,14 +9782,11 @@ const main = () => __awaiter(void 0, void 0, void 0, function* () {
         const cli = detectCli(rocPath);
         core.info(`Detected ${cli} Roc CLI.`);
         // Bundle the library
-        if (cli === "new") {
-            bundleLibraryNew(rocPath, libraryEntrypointPath, bundleType, compression);
-        }
-        else {
-            bundleLibraryLegacy(rocPath, libraryEntrypointPath, bundleType, compression);
-        }
+        const outputDir = cli === "new"
+            ? bundleLibraryNew(rocPath, libraryEntrypointPath, bundleType, compression)
+            : bundleLibraryLegacy(rocPath, libraryEntrypointPath, bundleType, compression);
         const expectedExtension = cli === "new" ? ".tar.zst" : bundleType;
-        const bundlePath = yield getBundlePath(libraryEntrypointPath, expectedExtension);
+        const bundlePath = yield getBundlePath(outputDir, expectedExtension);
         core.setOutput("bundle-path", bundlePath);
         // Publish the bundle
         if (release) {
@@ -9839,6 +9882,14 @@ module.exports = require("node:child_process");
 
 "use strict";
 module.exports = require("node:fs");
+
+/***/ }),
+
+/***/ 8161:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:os");
 
 /***/ }),
 
