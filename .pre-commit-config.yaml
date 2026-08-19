@@ -34,6 +34,12 @@ repos:
         language: system
         entry: npm exec -- biome check --write
         types: [ts]
+      - name: Typecheck TypeScript files
+        id: typescript-typecheck
+        language: system
+        entry: npm exec -- tsc --noEmit
+        types: [ts]
+        pass_filenames: false
 
       # YAML
       - name: Format YAML files
