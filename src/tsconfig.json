@@ -3,6 +3,7 @@
 		"target": "es2024",
 		"module": "commonjs",
 		"strict": true,
-		"skipLibCheck": true
+		"skipLibCheck": true,
+		"types": ["node"]
 	}
 }
