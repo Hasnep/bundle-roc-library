@@ -27,33 +27,33 @@ repos:
       - name: Format TypeScript files
         id: prettier
         language: system
-        entry: npm exec prettier --write
+        entry: npm exec -- prettier --write
         types: [ts]
       - name: Lint TypeScript files
         id: eslint
         language: system
-        entry: npm exec eslint
+        entry: npm exec -- eslint
         types: [ts]
 
       # YAML
       - name: Format YAML files
         id: prettier
         language: system
-        entry: npm exec prettier --write
+        entry: npm exec -- prettier --write
         types: [yaml]
 
       # JSON
       - name: Format JSON files
         id: prettier
         language: system
-        entry: npm exec prettier --write
+        entry: npm exec -- prettier --write
         types: [json]
 
       # Markdown
       - name: Format markdown files
         id: prettier
         language: system
-        entry: npm exec prettier --write
+        entry: npm exec -- prettier --write
         types: [markdown]
 
   # GitHub Actions
