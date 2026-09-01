@@ -50,10 +50,15 @@ repos:
         types: [json]
 
       # Markdown
-      - name: Format markdown files
-        id: prettier
+      - name: Lint markdown files
+        id: rumdl
         language: system
-        entry: npm exec -- prettier --write
+        entry: npm exec -- rumdl check --fix
+        types: [markdown]
+      - name: Format markdown files
+        id: rumdl-fmt
+        language: system
+        entry: npm exec -- rumdl fmt
         types: [markdown]
 
   # GitHub Actions
