@@ -30,5 +30,5 @@ outputs:
     description: The absolute path to the bundled library.
 
 runs:
-  using: node16
+  using: node24
   main: dist/index.js
