@@ -1,0 +1,19 @@
+[global]
+disable = [
+    "MD013",  # Line length
+    "MD063",  # Heading capitalization
+]
+enable = ["ALL"]
+flavor = "gfm"  # GitHub flavoured markdown
+
+[MD003]
+style = "atx"  # Heading style (atx, atx_closed, setext)
+
+[MD004]
+style = "dash"  # Unordered list style
+
+[MD007]
+indent = 2  # Unordered list indentation
+
+[MD060]  # Table formatting
+style = "aligned"  # Align tables
