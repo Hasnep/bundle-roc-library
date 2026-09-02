@@ -1,35 +1,33 @@
 {
-  "name": "bundle-roc-library",
-  "version": "0.3.0",
-  "private": true,
-  "description": "A GitHub Action to bundle and release a Roc library.",
-  "main": "dist/index.js",
-  "scripts": {
-    "build": "ncc build --license licenses.txt --out dist/ src/index.ts",
-    "fix": "eslint --fix src/",
-    "lint": "eslint src/",
-    "format": "prettier --write src/"
-  },
-  "author": "Hannes",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/hasnep/bundle-roc-library.git"
-  },
-  "dependencies": {
-    "@actions/core": "^1.10.0",
-    "@actions/github": "^5.1.1",
-    "@actions/glob": "^0.4.0",
-    "@actions/tool-cache": "^2.0.1"
-  },
-  "devDependencies": {
-    "@types/node": "^24.0.0",
-    "@typescript-eslint/eslint-plugin": "^6.0.0",
-    "@typescript-eslint/parser": "^6.0.0",
-    "@vercel/ncc": "^0.45.0",
-    "eslint": "^8.44.0",
-    "prettier": "^3.0.0",
-    "rumdl": "^0.2.62",
-    "typescript": "^5.1.6"
-  }
+	"name": "bundle-roc-library",
+	"version": "0.3.0",
+	"private": true,
+	"description": "A GitHub Action to bundle and release a Roc library.",
+	"main": "dist/index.js",
+	"scripts": {
+		"build": "ncc build --license licenses.txt --out dist/ src/index.ts",
+		"fix": "eslint --fix src/",
+		"lint": "eslint src/",
+		"format": "prettier --write src/"
+	},
+	"author": "Hannes",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/hasnep/bundle-roc-library.git"
+	},
+	"dependencies": {
+		"@actions/core": "^1.10.0",
+		"@actions/github": "^5.1.1",
+		"@actions/glob": "^0.4.0",
+		"@actions/tool-cache": "^2.0.1"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.11",
+		"@types/node": "^24.0.0",
+		"@vercel/ncc": "^0.45.0",
+		"prettier": "^3.0.0",
+		"rumdl": "^0.2.62",
+		"typescript": "^5.1.6"
+	}
 }

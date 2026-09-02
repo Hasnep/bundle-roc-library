@@ -25,14 +25,14 @@ repos:
     hooks:
       # TypeScript
       - name: Format TypeScript files
-        id: prettier
+        id: typescript-format
         language: system
-        entry: npm exec -- prettier --write
+        entry: npm exec -- biome format --write
         types: [ts]
-      - name: Lint TypeScript files
-        id: eslint
+      - name: Check TypeScript files
+        id: typescript-check
         language: system
-        entry: npm exec -- eslint
+        entry: npm exec -- biome check --write
         types: [ts]
 
       # YAML
@@ -44,9 +44,9 @@ repos:
 
       # JSON
       - name: Format JSON files
-        id: prettier
+        id: json-format
         language: system
-        entry: npm exec -- prettier --write
+        entry: npm exec -- biome format --write
         types: [json]
 
       # Markdown

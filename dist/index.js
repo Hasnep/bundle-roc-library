@@ -9627,16 +9627,16 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-const child_process_1 = __nccwpck_require__(5317);
+const node_child_process_1 = __nccwpck_require__(1421);
+const fs = __nccwpck_require__(3024);
+const path = __nccwpck_require__(6760);
 const core = __nccwpck_require__(7484);
-const fs = __nccwpck_require__(9896);
 const gh = __nccwpck_require__(3228);
-const path = __nccwpck_require__(6928);
 const detectCli = (rocPath) => {
     // The legacy compiler prints global help (exit 0) for unknown subcommands, so an exit code alone can't distinguish CLIs.
     // Match on a flag name unique to the new `roc bundle` subcommand.
     try {
-        const out = (0, child_process_1.execSync)(`${quoteIfSpaces(rocPath)} bundle --help`, {
+        const out = (0, node_child_process_1.execSync)(`${quoteIfSpaces(rocPath)} bundle --help`, {
             stdio: ["ignore", "pipe", "ignore"],
         }).toString();
         return out.includes("--output-dir") ? "new" : "legacy";
@@ -9660,7 +9660,7 @@ const bundleLibraryLegacy = (rocPath, libraryEntrypointPath, bundleType, compres
         .map(quoteIfSpaces)
         .join(" ");
     core.info(`Running bundle command '${bundleCommand}'.`);
-    const stdOut = (0, child_process_1.execSync)(bundleCommand);
+    const stdOut = (0, node_child_process_1.execSync)(bundleCommand);
     core.info(stdOut.toString());
 };
 const bundleLibraryNew = (rocPath, libraryEntrypointPath, bundleType, compression) => {
@@ -9679,7 +9679,7 @@ const bundleLibraryNew = (rocPath, libraryEntrypointPath, bundleType, compressio
         .map(quoteIfSpaces)
         .join(" ");
     core.info(`Running bundle command '${bundleCommand}'.`);
-    const stdOut = (0, child_process_1.execSync)(bundleCommand);
+    const stdOut = (0, node_child_process_1.execSync)(bundleCommand);
     core.info(stdOut.toString());
 };
 const getBundlePath = (libraryEntrypointPath, extension) => __awaiter(void 0, void 0, void 0, function* () {
@@ -9778,14 +9778,6 @@ module.exports = require("assert");
 
 /***/ }),
 
-/***/ 5317:
-/***/ ((module) => {
-
-"use strict";
-module.exports = require("child_process");
-
-/***/ }),
-
 /***/ 6982:
 /***/ ((module) => {
 
@@ -9831,6 +9823,30 @@ module.exports = require("https");
 
 "use strict";
 module.exports = require("net");
+
+/***/ }),
+
+/***/ 1421:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:child_process");
+
+/***/ }),
+
+/***/ 3024:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:fs");
+
+/***/ }),
+
+/***/ 6760:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:path");
 
 /***/ }),
 
