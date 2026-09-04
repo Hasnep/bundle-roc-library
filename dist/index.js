@@ -9612,6 +9612,189 @@ function wrappy (fn, cb) {
 
 /***/ }),
 
+/***/ 9407:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const node_child_process_1 = __nccwpck_require__(1421);
+const fs = __importStar(__nccwpck_require__(3024));
+const path = __importStar(__nccwpck_require__(6760));
+const core = __importStar(__nccwpck_require__(7484));
+const gh = __importStar(__nccwpck_require__(3228));
+const detectCli = (rocPath) => {
+    // The legacy compiler prints global help (exit 0) for unknown subcommands, so an exit code alone can't distinguish CLIs.
+    // Match on a flag name unique to the new `roc bundle` subcommand.
+    try {
+        const out = (0, node_child_process_1.execSync)(`${quoteIfSpaces(rocPath)} bundle --help`, {
+            stdio: ["ignore", "pipe", "ignore"],
+        }).toString();
+        return out.includes("--output-dir") ? "new" : "legacy";
+    }
+    catch {
+        return "legacy";
+    }
+};
+const quoteIfSpaces = (x) => (x.includes(" ") ? `"${x}"` : x);
+const bundleLibraryLegacy = (rocPath, libraryEntrypointPath, bundleType, compression) => {
+    if (compression !== "") {
+        core.warning("Ignoring 'compression' input on legacy Roc CLI.");
+    }
+    const bundleCommand = [
+        rocPath,
+        "build",
+        "--bundle",
+        bundleType,
+        libraryEntrypointPath,
+    ]
+        .map(quoteIfSpaces)
+        .join(" ");
+    core.info(`Running bundle command '${bundleCommand}'.`);
+    const stdOut = (0, node_child_process_1.execSync)(bundleCommand);
+    core.info(stdOut.toString());
+};
+const bundleLibraryNew = (rocPath, libraryEntrypointPath, bundleType, compression) => {
+    if (bundleType !== ".tar.zst") {
+        core.warning("Ignoring 'bundle-type' input on new Roc CLI; bundles are always '.tar.zst'.");
+    }
+    const outputDir = path.dirname(libraryEntrypointPath);
+    const bundleCommand = [
+        rocPath,
+        "bundle",
+        "--output-dir",
+        outputDir,
+        ...(compression !== "" ? ["--compression", compression] : []),
+        libraryEntrypointPath,
+    ]
+        .map(quoteIfSpaces)
+        .join(" ");
+    core.info(`Running bundle command '${bundleCommand}'.`);
+    const stdOut = (0, node_child_process_1.execSync)(bundleCommand);
+    core.info(stdOut.toString());
+};
+const getBundlePath = async (libraryEntrypointPath, extension) => {
+    const libraryFolder = path.dirname(libraryEntrypointPath);
+    core.info(`Looking for bundled library in '${libraryFolder}' with extension '${extension}'.`);
+    const bundleFileName = fs
+        .readdirSync(libraryFolder)
+        .find((x) => x.endsWith(extension));
+    if (bundleFileName === undefined) {
+        throw new Error(`Couldn't find bundled library in '${libraryFolder}' with extension '${extension}'.`);
+    }
+    const bundlePath = path.resolve(path.join(libraryFolder, bundleFileName));
+    core.info(`Found bundled library at '${bundlePath}'.`);
+    return bundlePath;
+};
+const publishBundledLibrary = async (releaseTag, bundlePath, octokitClient) => {
+    core.info(`Publishing to release associated with the tag '${releaseTag}'.`);
+    const release = await octokitClient.rest.repos
+        .getReleaseByTag({
+        ...gh.context.repo,
+        tag: releaseTag,
+    })
+        .catch((err) => {
+        const createReleaseUrl = `https://github.com/${gh.context.repo.owner}/${gh.context.repo.repo}/releases/new`;
+        core.error([
+            `Failed to find release associated with the tag '${releaseTag}'.`,
+            `You can go to '${createReleaseUrl}' to create a release.`,
+        ].join(" "));
+        throw err;
+    });
+    core.info(`Found release '${release.data.name}' at '${release.url}'.`);
+    octokitClient.rest.repos
+        .uploadReleaseAsset({
+        ...gh.context.repo,
+        release_id: release.data.id,
+        name: path.basename(bundlePath),
+        data: fs.createReadStream(bundlePath),
+        headers: {
+            "content-length": fs.statSync(bundlePath).size,
+            "content-type": "application/octet-stream",
+        },
+    })
+        .catch((err) => {
+        core.error(`Failed to upload bundle '${bundlePath}'.`);
+        throw err;
+    });
+};
+const main = async () => {
+    try {
+        // Get inputs
+        const isRequired = { required: true };
+        const token = core.getInput("token");
+        const bundleType = core.getInput("bundle-type");
+        const compression = core.getInput("compression");
+        const libraryEntrypointPath = core.getInput("library", isRequired);
+        const release = core.getBooleanInput("release", isRequired);
+        const releaseTag = core
+            .getInput("tag", { required: release })
+            .replace(/^refs\/(?:tags|heads)\//, "");
+        const rocPath = core.getInput("roc-path", isRequired);
+        const octokitClient = gh.getOctokit(token);
+        // Detect which Roc CLI we're talking to
+        const cli = detectCli(rocPath);
+        core.info(`Detected ${cli} Roc CLI.`);
+        // Bundle the library
+        if (cli === "new") {
+            bundleLibraryNew(rocPath, libraryEntrypointPath, bundleType, compression);
+        }
+        else {
+            bundleLibraryLegacy(rocPath, libraryEntrypointPath, bundleType, compression);
+        }
+        const expectedExtension = cli === "new" ? ".tar.zst" : bundleType;
+        const bundlePath = await getBundlePath(libraryEntrypointPath, expectedExtension);
+        core.setOutput("bundle-path", bundlePath);
+        // Publish the bundle
+        if (release) {
+            await publishBundledLibrary(releaseTag, bundlePath, octokitClient);
+        }
+        else {
+            core.info(`The input 'publish' was set to false, so skipping publish step.`);
+        }
+    }
+    catch (err) {
+        core.setFailed(err.message);
+    }
+};
+main();
+
+
+/***/ }),
+
 /***/ 2078:
 /***/ ((module) => {
 
@@ -9809,156 +9992,12 @@ module.exports = /*#__PURE__*/JSON.parse('[[[0,44],"disallowed_STD3_valid"],[[45
 /******/ 	if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = __dirname + "/";
 /******/ 	
 /************************************************************************/
-var __webpack_exports__ = {};
-// This entry need to be wrapped in an IIFE because it need to be in strict mode.
-(() => {
-"use strict";
-var exports = __webpack_exports__;
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-const node_child_process_1 = __nccwpck_require__(1421);
-const fs = __nccwpck_require__(3024);
-const path = __nccwpck_require__(6760);
-const core = __nccwpck_require__(7484);
-const gh = __nccwpck_require__(3228);
-const detectCli = (rocPath) => {
-    // The legacy compiler prints global help (exit 0) for unknown subcommands, so an exit code alone can't distinguish CLIs.
-    // Match on a flag name unique to the new `roc bundle` subcommand.
-    try {
-        const out = (0, node_child_process_1.execSync)(`${quoteIfSpaces(rocPath)} bundle --help`, {
-            stdio: ["ignore", "pipe", "ignore"],
-        }).toString();
-        return out.includes("--output-dir") ? "new" : "legacy";
-    }
-    catch {
-        return "legacy";
-    }
-};
-const quoteIfSpaces = (x) => (x.includes(" ") ? `"${x}"` : x);
-const bundleLibraryLegacy = (rocPath, libraryEntrypointPath, bundleType, compression) => {
-    if (compression !== "") {
-        core.warning("Ignoring 'compression' input on legacy Roc CLI.");
-    }
-    const bundleCommand = [
-        rocPath,
-        "build",
-        "--bundle",
-        bundleType,
-        libraryEntrypointPath,
-    ]
-        .map(quoteIfSpaces)
-        .join(" ");
-    core.info(`Running bundle command '${bundleCommand}'.`);
-    const stdOut = (0, node_child_process_1.execSync)(bundleCommand);
-    core.info(stdOut.toString());
-};
-const bundleLibraryNew = (rocPath, libraryEntrypointPath, bundleType, compression) => {
-    if (bundleType !== ".tar.zst") {
-        core.warning("Ignoring 'bundle-type' input on new Roc CLI; bundles are always '.tar.zst'.");
-    }
-    const outputDir = path.dirname(libraryEntrypointPath);
-    const bundleCommand = [
-        rocPath,
-        "bundle",
-        "--output-dir",
-        outputDir,
-        ...(compression !== "" ? ["--compression", compression] : []),
-        libraryEntrypointPath,
-    ]
-        .map(quoteIfSpaces)
-        .join(" ");
-    core.info(`Running bundle command '${bundleCommand}'.`);
-    const stdOut = (0, node_child_process_1.execSync)(bundleCommand);
-    core.info(stdOut.toString());
-};
-const getBundlePath = async (libraryEntrypointPath, extension) => {
-    const libraryFolder = path.dirname(libraryEntrypointPath);
-    core.info(`Looking for bundled library in '${libraryFolder}' with extension '${extension}'.`);
-    const bundleFileName = fs
-        .readdirSync(libraryFolder)
-        .find((x) => x.endsWith(extension));
-    if (bundleFileName === undefined) {
-        throw new Error(`Couldn't find bundled library in '${libraryFolder}' with extension '${extension}'.`);
-    }
-    const bundlePath = path.resolve(path.join(libraryFolder, bundleFileName));
-    core.info(`Found bundled library at '${bundlePath}'.`);
-    return bundlePath;
-};
-const publishBundledLibrary = async (releaseTag, bundlePath, octokitClient) => {
-    core.info(`Publishing to release associated with the tag '${releaseTag}'.`);
-    const release = await octokitClient.rest.repos
-        .getReleaseByTag({
-        ...gh.context.repo,
-        tag: releaseTag,
-    })
-        .catch((err) => {
-        const createReleaseUrl = `https://github.com/${gh.context.repo.owner}/${gh.context.repo.repo}/releases/new`;
-        core.error([
-            `Failed to find release associated with the tag '${releaseTag}'.`,
-            `You can go to '${createReleaseUrl}' to create a release.`,
-        ].join(" "));
-        throw err;
-    });
-    core.info(`Found release '${release.data.name}' at '${release.url}'.`);
-    octokitClient.rest.repos
-        .uploadReleaseAsset({
-        ...gh.context.repo,
-        release_id: release.data.id,
-        name: path.basename(bundlePath),
-        data: fs.createReadStream(bundlePath),
-        headers: {
-            "content-length": fs.statSync(bundlePath).size,
-            "content-type": "application/octet-stream",
-        },
-    })
-        .catch((err) => {
-        core.error(`Failed to upload bundle '${bundlePath}'.`);
-        throw err;
-    });
-};
-const main = async () => {
-    try {
-        // Get inputs
-        const isRequired = { required: true };
-        const token = core.getInput("token");
-        const bundleType = core.getInput("bundle-type");
-        const compression = core.getInput("compression");
-        const libraryEntrypointPath = core.getInput("library", isRequired);
-        const release = core.getBooleanInput("release", isRequired);
-        const releaseTag = core
-            .getInput("tag", { required: release })
-            .replace(/^refs\/(?:tags|heads)\//, "");
-        const rocPath = core.getInput("roc-path", isRequired);
-        const octokitClient = gh.getOctokit(token);
-        // Detect which Roc CLI we're talking to
-        const cli = detectCli(rocPath);
-        core.info(`Detected ${cli} Roc CLI.`);
-        // Bundle the library
-        if (cli === "new") {
-            bundleLibraryNew(rocPath, libraryEntrypointPath, bundleType, compression);
-        }
-        else {
-            bundleLibraryLegacy(rocPath, libraryEntrypointPath, bundleType, compression);
-        }
-        const expectedExtension = cli === "new" ? ".tar.zst" : bundleType;
-        const bundlePath = await getBundlePath(libraryEntrypointPath, expectedExtension);
-        core.setOutput("bundle-path", bundlePath);
-        // Publish the bundle
-        if (release) {
-            await publishBundledLibrary(releaseTag, bundlePath, octokitClient);
-        }
-        else {
-            core.info(`The input 'publish' was set to false, so skipping publish step.`);
-        }
-    }
-    catch (err) {
-        core.setFailed(err.message);
-    }
-};
-main();
-
-})();
-
-module.exports = __webpack_exports__;
+/******/ 	
+/******/ 	// startup
+/******/ 	// Load entry module and return exports
+/******/ 	// This entry module is referenced by other modules so it can't be inlined
+/******/ 	var __webpack_exports__ = __nccwpck_require__(9407);
+/******/ 	module.exports = __webpack_exports__;
+/******/ 	
 /******/ })()
 ;
